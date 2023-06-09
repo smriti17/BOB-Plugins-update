@@ -116,8 +116,8 @@ class TInvWL_Public_Cart {
 		if ( empty( $product['data'] ) ) {
 			return false;
 		}
-
-		$product = apply_filters( 'tinvwl_addproduct_tocart', $product );
+		$product['action'] = 'add';
+		$product           = apply_filters( 'tinvwl_addproduct_tocart', $product );
 		self::prepare_post( $product );
 
 		$use_original_id = false;
@@ -157,10 +157,11 @@ class TInvWL_Public_Cart {
 			}
 		}
 
-		$passed_validation = $product['data']->is_purchasable() && ( $product['data']->is_in_stock() || $product['data']->backorders_allowed() ) && 'external' !== $product['data']->get_type();
+		$cart_errors       = self::add_to_cart_errors( $product['data'], $quantity );
+		$passed_validation = ! isset( $cart_errors['error_code'] );
 		$passed_validation = apply_filters( 'woocommerce_add_to_cart_validation', $passed_validation, $product_id, $quantity, $variation_id, $variations );
 		if ( $passed_validation ) {
-			$cart_item_key = WC()->cart->add_to_cart( $product_id, $quantity, $variation_id, $variations );
+			$cart_item_key = WC()->cart->add_to_cart( $product_id, $quantity, $variation_id, $variations, $product['meta'] );
 			if ( $cart_item_key ) {
 
 				/* Run a 3rd party code when product added to a cart from a wishlist.
@@ -177,14 +178,19 @@ class TInvWL_Public_Cart {
 				}
 				self::set_item_data( $cart_item_key, $wishlist['share_key'], $quantity );
 				self::set_item_meta( $cart_item_key, $product['meta'] );
-				self::unprepare_post();
+				self::unprepare_post( $product );
 
-				return array( $product_id => $quantity );
+				return array(
+					'product'       => $product['data'],
+					'quantity'      => $quantity,
+					'cart_item_key' => $cart_item_key
+				);
 			}
 		}
-		self::unprepare_post();
+		self::unprepare_post( $product );
+		$error_code = $cart_errors['error_code'] ?? 'default';
 
-		return false;
+		return array( 'product' => $product['data'], 'quantity' => $quantity, 'error_code' => $error_code );
 	}
 
 	/**
@@ -193,6 +199,7 @@ class TInvWL_Public_Cart {
 	 * @param array $product Wishlist Product.
 	 */
 	public static function prepare_post( $product ) {
+		do_action( 'tinvwl_before_prepare_post', $product );
 		self::$_post    = $_POST; // @codingStandardsIgnoreLine WordPress.VIP.SuperGlobalInputUsage.AccessDetected
 		self::$_request = $_REQUEST;
 		if ( array_key_exists( 'meta', $product ) && ! empty( $product['meta'] ) ) {
@@ -206,8 +213,11 @@ class TInvWL_Public_Cart {
 
 	/**
 	 * Unprepare _POST data
+	 *
+	 * @param array $product Wishlist Product.
 	 */
-	public static function unprepare_post() {
+	public static function unprepare_post( $product ) {
+		do_action( 'tinvwl_before_unprepare_post', $product, self::$_post, self::$_request );
 		$_POST    = self::$_post;
 		$_REQUEST = self::$_request;
 	}
@@ -216,42 +226,36 @@ class TInvWL_Public_Cart {
 	 * Get product added from wishlist
 	 *
 	 * @param string $cart_item_key Cart product key.
-	 * @param array $wishlist Wishlist object.
 	 *
-	 * @return array
+	 * @return int
 	 */
-	public static function get_item_data( $cart_item_key, $wishlist = null ) {
+	public static function get_item_data( $cart_item_key ) {
 		$data = (array) WC()->session->get( 'tinvwl_wishlist_cart', array() );
 		if ( empty( $data[ $cart_item_key ] ) ) {
 			$data[ $cart_item_key ] = array();
 		}
 
-		if ( empty( $wishlist ) ) {
-			return $data[ $cart_item_key ];
-		} else {
-			return empty( $data[ $cart_item_key ][ $wishlist ] ) ? 0 : $data[ $cart_item_key ][ $wishlist ];
-		}
+		return $data[ $cart_item_key ];
 	}
 
 	/**
 	 * Set product added from wishlist
 	 *
 	 * @param string $cart_item_key Cart product key.
-	 * @param array $wishlist Wishlist object.
+	 * @param string $wishlist_sharekey Wishlist sharekey.
 	 * @param integer $quantity Product quantity.
 	 *
 	 * @return boolean
 	 */
-	public static function set_item_data( $cart_item_key, $wishlist, $quantity = 1 ) {
+	public static function set_item_data( $cart_item_key, $wishlist_sharekey, $quantity = 1 ) {
 		$data = (array) WC()->session->get( 'tinvwl_wishlist_cart', array() );
 		if ( empty( $data[ $cart_item_key ] ) ) {
 			$data[ $cart_item_key ] = array();
 		}
-
-		if ( array_key_exists( $wishlist, $data[ $cart_item_key ] ) ) {
-			$data[ $cart_item_key ][ $wishlist ] += $quantity;
+		if ( array_key_exists( $wishlist_sharekey, $data[ $cart_item_key ] ) ) {
+			$data[ $cart_item_key ][ $wishlist_sharekey ] += $quantity;
 		} else {
-			$data[ $cart_item_key ][ $wishlist ] = $quantity;
+			$data[ $cart_item_key ][ $wishlist_sharekey ] = $quantity;
 		}
 
 		WC()->session->set( 'tinvwl_wishlist_cart', $data );
@@ -291,11 +295,10 @@ class TInvWL_Public_Cart {
 	 * Remove product added from wishlist
 	 *
 	 * @param string $cart_item_key Cart product key.
-	 * @param array $wishlist Wishlist object.
 	 *
 	 * @return boolean
 	 */
-	public static function remove_item_data( $cart_item_key = null, $wishlist = null ) {
+	public static function remove_item_data( $cart_item_key = null ) {
 		$data = (array) WC()->session->get( 'tinvwl_wishlist_cart', array() );
 		if ( empty( $cart_item_key ) ) {
 			WC()->session->set( 'tinvwl_wishlist_cart', array() );
@@ -305,14 +308,9 @@ class TInvWL_Public_Cart {
 		if ( ! array_key_exists( $cart_item_key, $data ) ) {
 			return false;
 		}
-		if ( empty( $wishlist ) ) {
-			unset( $data[ $cart_item_key ] );
-		} else {
-			if ( ! array_key_exists( $wishlist, $data[ $cart_item_key ] ) ) {
-				return false;
-			}
-			unset( $data[ $cart_item_key ][ $wishlist ] );
-		}
+
+		unset( $data[ $cart_item_key ] );
+
 		WC()->session->set( 'tinvwl_wishlist_cart', $data );
 
 		return true;
@@ -462,7 +460,7 @@ class TInvWL_Public_Cart {
 	 */
 	function order_status_analytics( $order_id, $old_status, $new_status ) {
 		$new_status = str_replace( 'wc-', '', $new_status );
-		$order      = new WC_Order( $order_id );
+		$order      = wc_get_order( $order_id );
 
 		if ( in_array( $new_status, array(
 				'processing',
@@ -515,5 +513,176 @@ class TInvWL_Public_Cart {
 		$value = $item->get_meta( $key );
 
 		return $value;
+	}
+
+
+	/**
+	 * Get errors when adding a product to the cart.
+	 *
+	 * @param WC_Product $product The product to add to the cart.
+	 * @param int $quantity The quantity of the product to be added. Default is 1.
+	 *
+	 * @return array Array of error codes or false if no errors.
+	 */
+	public static function add_to_cart_errors( WC_Product $product, int $quantity = 1 ): array {
+		if ( ! $product->is_purchasable() ) {
+			return [ 'product' => $product, 'error_code' => 'not_purchasable' ];
+		}
+
+		if ( ! $product->is_in_stock() && ! $product->backorders_allowed() ) {
+			return [ 'product' => $product, 'error_code' => 'not_in_stock' ];
+		}
+
+		if ( 'external' === $product->get_type() ) {
+			return [ 'product' => $product, 'error_code' => 'external' ];
+		}
+
+		if ( 'variable' === $product->get_type() && ! empty( $product->get_children() ) ) {
+			return [ 'product' => $product, 'error_code' => 'parent_variable' ];
+		}
+
+		/** @global \WooCommerce $woocommerce */
+		global $woocommerce;
+		$product_in_cart = array_filter(
+			$woocommerce->cart->get_cart(),
+			fn( array $item ): bool => $item['product_id'] === $product->get_id()
+		);
+
+		if ( $product->is_sold_individually() && ! empty( $product_in_cart ) ) {
+			return [ 'product' => $product, 'error_code' => 'sold_individually' ];
+		}
+
+		if ( ! $product->has_enough_stock( $quantity ) ) {
+			return [ 'product' => $product, 'error_code' => 'more_than_stock' ];
+		}
+
+		if ( $product->managing_stock() ) {
+			$quantity_in_cart = array_sum( wp_list_pluck( $product_in_cart, 'quantity' ) );
+			if ( $quantity_in_cart + $quantity > $product->get_stock_quantity() ) {
+				return [ 'product' => $product, 'error_code' => 'more_than_stock' ];
+			}
+		}
+
+		return [ 'product' => $product ];
+	}
+
+	/**
+	 * Generates an error message for products that couldn't be added to the cart.
+	 *
+	 * @param array $products Array of products with error codes.
+	 *                        Each product should have the 'product' (WC_Product) and 'error_code' (string) keys.
+	 *
+	 * @return string Error message.
+	 */
+	public static function cart_all_errors_message( array $products ): string {
+		$response = [];
+
+		// Group $products data by error_code to get a new array $codes
+		$codes = [];
+		foreach ( $products as $product ) {
+			$error_code             = $product['error_code'];
+			$product_name           = $product['product']->get_name();
+			$codes[ $error_code ][] = $product_name;
+		}
+
+		foreach ( $codes as $code => $titles ) {
+			$response[] = self::cart_error_message( $code, $titles );
+		}
+
+		return implode( '<br>', $response );
+	}
+
+	/**
+	 * Generate an error message based on the provided code and titles.
+	 *
+	 * @param string $code Error code.
+	 * @param array $titles Array of titles.
+	 *
+	 * @return string Error message.
+	 */
+	public static function cart_error_message( string $code, array $titles ): string {
+		$error_message = '';
+
+		switch ( $code ) {
+			case 'not_purchasable':
+				$error_message = sprintf(
+					_n(
+						'Sorry, the &quot;%s&quot; cannot be purchased.',
+						'Sorry, the following products cannot be purchased: &quot;%s&quot;.',
+						count( $titles ),
+						'ti-woocommerce-wishlist'
+					),
+					wc_format_list_of_items( $titles )
+				);
+				break;
+			case 'not_in_stock':
+				$error_message = sprintf(
+					_n(
+						'You cannot add &quot;%s&quot; to the cart because the product is out of stock.',
+						'You cannot add the following products to the cart because they are out of stock: &quot;%s&quot;.',
+						count( $titles ),
+						'ti-woocommerce-wishlist'
+					),
+					wc_format_list_of_items( $titles )
+				);
+				break;
+			case 'external':
+				$error_message = sprintf(
+					_n(
+						'External product &quot;%s&quot; cannot be bought.',
+						'The following external products cannot be bought: &quot;%s&quot;.',
+						count( $titles ),
+						'ti-woocommerce-wishlist'
+					),
+					wc_format_list_of_items( $titles )
+				);
+				break;
+			case 'parent_variable':
+				$error_message = sprintf(
+					_n(
+						'Please choose product options for &quot;%s&quot;.',
+						'Please choose options for the following products: &quot;%s&quot;.',
+						count( $titles ),
+						'ti-woocommerce-wishlist'
+					),
+					wc_format_list_of_items( $titles )
+				);
+				break;
+			case 'sold_individually':
+				$error_message = sprintf(
+					_n(
+						'You cannot add another &quot;%s&quot; to your cart.',
+						'You cannot add &quot;%s&quot; more to your cart.',
+						count( $titles ),
+						'ti-woocommerce-wishlist'
+					),
+					wc_format_list_of_items( $titles )
+				);
+				break;
+			case 'more_than_stock':
+				$error_message = sprintf(
+					_n(
+						'You cannot add that amount of &quot;%s&quot; to the cart because there is not enough stock.',
+						'You cannot add the following products to the cart because there is not enough stock: &quot;%s&quot;.',
+						count( $titles ),
+						'ti-woocommerce-wishlist'
+					),
+					wc_format_list_of_items( $titles )
+				);
+				break;
+			default:
+				$error_message = sprintf(
+					_n(
+						'Product &quot;%s&quot; could not be added to the cart because some requirements are not met.',
+						'Products: &quot;%s&quot; could not be added to the cart because some requirements are not met.',
+						count( $titles ),
+						'ti-woocommerce-wishlist'
+					),
+					wc_format_list_of_items( $titles )
+				);
+				break;
+		}
+
+		return $error_message;
 	}
 }

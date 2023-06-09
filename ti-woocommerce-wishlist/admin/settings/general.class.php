@@ -248,16 +248,16 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 						'type'  => 'text',
 						'name'  => 'text_added_to',
 						'text'  => __( '"Product added to Wishlist" Text', 'ti-woocommerce-wishlist' ),
-						'std'   => '{product_name} added to Wishlist',
-						'desc'  => __( 'You can use next placeholder in this field to get current product name: <code>{product_name}</code>, <code>{product_sku}</code>', 'ti-woocommerce-wishlist' ),
+						'std'   => '{product_name} added to {wishlist_title}',
+						'desc'  => __( 'You can use next placeholder in this field to get current product name: <code>{product_name}</code>, <code>{product_sku}</code>, <code>{wishlist_title}</code>', 'ti-woocommerce-wishlist' ),
 						'class' => 'tiwl-button-show-notice',
 					),
 					array(
 						'type'  => 'text',
 						'name'  => 'text_already_in',
 						'text'  => __( '"Product already in Wishlist" Text', 'ti-woocommerce-wishlist' ),
-						'desc'  => __( 'This notification will be shown if a user will try to add a product that is already on the wishlist. ', 'ti-woocommerce-wishlist' ) . __( 'You can use next placeholder in this field to get current product name: <code>{product_name}</code>, <code>{product_sku}</code>', 'ti-woocommerce-wishlist' ),
-						'std'   => '{product_name} already in Wishlist',
+						'desc'  => __( 'This notification will be shown if a user will try to add a product that is already on the wishlist. ', 'ti-woocommerce-wishlist' ) . __( 'You can use next placeholder in this field to get current product name: <code>{product_name}</code>, <code>{product_sku}</code>, <code>{wishlist_title}</code>', 'ti-woocommerce-wishlist' ),
+						'std'   => '{product_name} already in {wishlist_title}',
 						'class' => 'tiwl-button-show-notice tiwl-general-simple-flow-hide',
 					),
 					array(
@@ -678,7 +678,6 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 						'name'  => 'add_to_cart',
 						'text'  => __( 'Show "Add to Cart" button', 'ti-woocommerce-wishlist' ),
 						'std'   => true,
-						'extra' => array( 'tiwl-show' => '.tiwl-table-action-addcart' ),
 					),
 					array(
 						'type'  => 'text',
@@ -1050,7 +1049,7 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 			}
 			parent::constructor_save( $data );
 		}
-		TInvWL_Public_TInvWL::update_rewrite_rules();
+		delete_option( 'rewrite_rules' );
 	}
 
 	/**

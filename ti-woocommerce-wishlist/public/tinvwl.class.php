@@ -51,7 +51,7 @@ class TInvWL_Public_TInvWL {
 	 *
 	 * @return \TInvWL_Public_TInvWL
 	 */
-	public static function instance( $plugin_name = TINVWL_PREFIX, $version = TINVWL_VERSION ) {
+	public static function instance( $plugin_name = TINVWL_PREFIX, $version = TINVWL_FVERSION ) {
 		if ( is_null( self::$_instance ) ) {
 			self::$_instance = new self( $plugin_name, $version );
 		}
@@ -77,6 +77,17 @@ class TInvWL_Public_TInvWL {
 	function pre_load_function() {
 
 		add_action( 'init', array( __CLASS__, 'add_rewrite_rules' ) );
+
+		if ( tinv_get_option( 'general', 'my_account_endpoint' ) ) {
+			add_action( 'init', array( $this, 'wishlist_endpoint' ) );
+			if ( ! is_admin() ) {
+				add_filter( 'query_vars', array( $this, 'wishlist_query_vars' ), 0 );
+				add_action( 'woocommerce_account_' . tinv_get_option( 'general', 'my_account_endpoint_slug' ) . '_endpoint', array(
+					$this,
+					'wishlist_content'
+				) );
+			}
+		}
 
 		add_action( 'tinvwl_flush_rewrite_rules', array( __CLASS__, 'apply_rewrite_rules' ) );
 
@@ -125,15 +136,6 @@ class TInvWL_Public_TInvWL {
 		if ( tinv_get_option( 'general', 'link_in_myaccount' ) || tinv_get_option( 'general', 'my_account_endpoint' ) ) {
 			add_filter( 'woocommerce_account_menu_items', array( $this, 'account_menu_items' ) );
 			add_filter( 'woocommerce_get_endpoint_url', array( $this, 'account_menu_endpoint' ), 4, 10 );
-		}
-
-		if ( tinv_get_option( 'general', 'my_account_endpoint' ) ) {
-			add_action( 'init', array( $this, 'wishlist_endpoint' ) );
-			add_filter( 'query_vars', array( $this, 'wishlist_query_vars' ), 0 );
-			add_action( 'woocommerce_account_' . tinv_get_option( 'general', 'my_account_endpoint_slug' ) . '_endpoint', array(
-				$this,
-				'wishlist_content'
-			) );
 		}
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_header' ) );
@@ -514,8 +516,9 @@ class TInvWL_Public_TInvWL {
 	function enqueue_scripts() {
 		$suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 		wp_register_script( $this->_name . '-clipboard', TINVWL_URL . 'assets/js/clipboard.min.js', array( 'jquery' ), $this->_version, true );
-		wp_register_script( $this->_name, TINVWL_URL . 'assets/js/public.js', array(
+		wp_register_script( $this->_name, TINVWL_URL . 'assets/js/public' . $suffix . '.js', array(
 			'jquery',
+			'jquery-blockui',
 			'js-cookie',
 			apply_filters( 'tinvwl_wc_cart_fragments_enabled', true ) ? 'wc-cart-fragments' : 'jquery',
 		), $this->_version, true );
@@ -589,7 +592,7 @@ class TInvWL_Public_TInvWL {
 	 * @param string $user_login Not used.
 	 * @param object $user User object.
 	 *
-	 * @return boolean
+	 * @return void
 	 */
 	function transfert_local_to_user( $user_login, $user ) {
 		return $this->transfert_local_to_user_register( $user->ID );
