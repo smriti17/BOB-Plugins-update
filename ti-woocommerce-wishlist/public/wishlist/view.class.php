@@ -126,6 +126,8 @@ class TInvWL_Public_Wishlist_View {
 		add_action( 'tinvwl_after_wishlist_table', array( $this, 'get_per_page' ) );
 
 		TInvWL_Public_Wishlist_Buttons::init( $this->_name );
+
+		add_action( 'tinvwl_before_wishlist_template', array( $this, 'refresh_wishlist_after_action' ) );
 	}
 
 	/**
@@ -202,7 +204,7 @@ class TInvWL_Public_Wishlist_View {
 		// override global product data.
 		$product = $_product;
 		if ( apply_filters( 'tinvwl_product_add_to_cart_need_redirect', false, $product, $product->get_permalink(), $wl_product )
-		     && in_array( $product->get_type(), array(
+			 && in_array( $product->get_type(), array(
 				'variable',
 				'variable-subscription',
 			) ) ) {
@@ -223,7 +225,7 @@ class TInvWL_Public_Wishlist_View {
 	 * @param array $wl_product Wishlist product.
 	 * @param object $product Product.
 	 *
-	 * @return type
+	 * @return string
 	 */
 	function add_argument( $url, $wl_product, $product ) {
 		return add_query_arg( 'tiwp', $wl_product['ID'], $url );
@@ -264,7 +266,7 @@ class TInvWL_Public_Wishlist_View {
 	 *
 	 * @return array
 	 */
-	function get_current_products( $wishlist = null, $external = true, $lists_per_page = 10, $paged = 1 ) {
+	function get_current_products( $wishlist = null, $external = true, $lists_per_page = null, $paged = 1 ) {
 		if ( empty( $wishlist ) || $wishlist === $this->get_current_wishlist() ) {
 			$wishlist = $this->get_current_wishlist();
 
@@ -292,6 +294,9 @@ class TInvWL_Public_Wishlist_View {
 		if ( empty( $wlp ) ) {
 			return array();
 		}
+		if ( ! $lists_per_page ) {
+			$lists_per_page = tinv_get_option( 'table', 'per_page' );
+		}
 
 		$paged        = absint( get_query_var( 'wl_paged' ) ? get_query_var( 'wl_paged' ) : $paged );
 		$this->pages  = ceil( absint( $wlp->get_wishlist( array(
@@ -311,7 +316,7 @@ class TInvWL_Public_Wishlist_View {
 		$products     = $wlp->get_wishlist( $product_data );
 		$products     = apply_filters( 'tinvwl_after_get_current_product', $products );
 
-		if ( 10 === absint( $lists_per_page ) ) {
+		if ( tinv_get_option( 'table', 'per_page' ) === absint( $lists_per_page ) ) {
 			$this->current_products_query = $products;
 		}
 
@@ -450,7 +455,7 @@ class TInvWL_Public_Wishlist_View {
 		$this->lists_per_page = absint( $atts['lists_per_page'] );
 		$paged                = absint( get_query_var( 'wl_paged' ) ? get_query_var( 'wl_paged' ) : $atts['paged'] );
 
-		if ( 10 === $this->lists_per_page && is_array( $this->get_current_products_query() ) && ! $atts['sharekey'] ) {
+		if ( tinv_get_option( 'table', 'per_page' ) === $this->lists_per_page && is_array( $this->get_current_products_query() ) && ! $atts['sharekey'] ) {
 			$products = $this->current_products_query;
 		} else {
 			$products = $this->get_current_products( $wishlist, true, $this->lists_per_page, $paged );
@@ -464,7 +469,9 @@ class TInvWL_Public_Wishlist_View {
 				unset( $products[ $key ] );
 			}
 		}
-
+		if ( ! ( defined( 'DOING_AJAX' ) && DOING_AJAX ) ) {
+			do_action( 'tinvwl_before_wishlist_template', $wishlist );
+		}
 		if ( empty( $products ) ) {
 
 			$this->pages = 0;
@@ -481,6 +488,7 @@ class TInvWL_Public_Wishlist_View {
 			'wishlist_table'     => tinv_get_option( 'table' ),
 			'wishlist_table_row' => $wishlist_table_row,
 			'wl_paged'           => $this->paged,
+			'wl_per_page'        => $this->lists_per_page,
 		);
 
 		if ( 1 < $this->paged ) {
@@ -593,7 +601,7 @@ class TInvWL_Public_Wishlist_View {
 	 *
 	 * @param integer $paged Index page.
 	 * @param string $text Text button.
-	 * @param style $style Style attribute.
+	 * @param string $style Style attribute.
 	 */
 	function page( $paged, $text, $style = array() ) {
 		$paged    = absint( $paged );
@@ -636,5 +644,39 @@ class TInvWL_Public_Wishlist_View {
 				'name' => 'lists_per_page',
 			), $this->lists_per_page );
 		}
+	}
+
+	/**
+	 * Outputs the script for refreshing wishlist.
+	 */
+	public function refresh_wishlist_after_action( $wishlist ) {
+
+		if ( ! $wishlist['is_owner'] ) {
+			return false;
+		}
+
+		?>
+		<script type="text/javascript">
+			jQuery(document).ready(function ($) {
+				// Generate a unique hash key for localStorage
+				var hash_key = tinvwl_add_to_wishlist.hash_key + '_refresh';
+
+				if (localStorage.getItem(hash_key) && '<?php echo $wishlist['share_key'] ?>' === localStorage.getItem(hash_key)) {
+					localStorage.setItem(hash_key, '');
+				}
+
+				// Refresh the wishlist when storage changes in another tab
+				$(window).on('storage', function (e) {
+					if (
+						e.originalEvent.key === hash_key &&
+						'<?php echo $wishlist['share_key'] ?>' === e.originalEvent.newValue
+					) {
+						// Call the function to refresh the wishlist data
+						$.fn.tinvwl_get_wishlist_data('refresh');
+					}
+				});
+			});
+		</script>
+		<?php
 	}
 }

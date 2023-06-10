@@ -68,6 +68,7 @@ class TInvWL_Public_Wishlist_Ajax {
 			'tinvwl-action'     => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 			'tinvwl-product_id' => FILTER_VALIDATE_INT,
 			'tinvwl-paged'      => FILTER_VALIDATE_INT,
+			'tinvwl-per-page'   => FILTER_VALIDATE_INT,
 			'tinvwl-sharekey'   => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
 			'tinvwl-products'   => array(
 				'filter' => FILTER_VALIDATE_INT,
@@ -75,6 +76,9 @@ class TInvWL_Public_Wishlist_Ajax {
 			),
 		) );
 
+		if ( ! isset( $post['tinvwl-action'] ) || ! $post['tinvwl-action'] ) {
+			return;
+		}
 
 		$wl       = new TInvWL_Wishlist( $this->_name );
 		$wishlist = $wl->get_by_share_key( $post['tinvwl-sharekey'] );
@@ -86,11 +90,11 @@ class TInvWL_Public_Wishlist_Ajax {
 
 		$guest_wishlist = false;
 		if ( ! is_user_logged_in() ) {
-			$guest_wishlist = $wl->get_by_user_default();
+			$guest_wishlist = $wl->get_by_sharekey_default();
 			$guest_wishlist = array_shift( $guest_wishlist );
 		}
 
-		if ( defined( 'DOING_AJAX' ) && DOING_AJAX && $post['tinvwl-security'] && wp_verify_nonce( $post['tinvwl-security'], 'wp_rest' ) && $post['tinvwl-action'] ) {
+		if ( defined( 'DOING_AJAX' ) && DOING_AJAX && isset( $post['tinvwl-security'] ) && wp_verify_nonce( $post['tinvwl-security'], 'wp_rest' ) && isset( $post['tinvwl-action'] ) ) {
 			$this->wishlist_ajax_actions( $wishlist, $post, $guest_wishlist );
 		} else {
 			$response['status'] = false;
@@ -109,6 +113,13 @@ class TInvWL_Public_Wishlist_Ajax {
 	}
 
 	function wishlist_ajax_actions( $wishlist, $post, $guest_wishlist = false ) {
+
+		do_action( 'tinvwl_ajax_actions_before', $wishlist, $post, $guest_wishlist );
+
+		if ( ! $wishlist && $guest_wishlist ) {
+			$wishlist = $guest_wishlist;
+		}
+
 		$post['wishlist_qty'] = 1;
 		$action               = $post['tinvwl-action'];
 		$class                = TInvWL_Public_AddToWishlist::instance();
@@ -119,8 +130,7 @@ class TInvWL_Public_Wishlist_Ajax {
 		switch ( $action ) {
 			case 'remove':
 				if ( ! $wishlist['is_owner'] ) {
-					$response['status'] = false;
-					$response['msg'][]  = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
+					$response['msg'][] = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
 					break;
 				}
 				$product = $post['tinvwl-product_id'];
@@ -130,15 +140,13 @@ class TInvWL_Public_Wishlist_Ajax {
 					$wlp = new TInvWL_Product( $wishlist );
 				}
 				if ( empty( $wlp ) ) {
-					$response['status'] = false;
-					$response['msg'][]  = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
+					$response['msg'][] = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
 					break;
 				}
 				$product_data = $wlp->get_wishlist( array( 'ID' => $product ) );
 				$product_data = array_shift( $product_data );
 				if ( empty( $product_data ) ) {
-					$response['status'] = false;
-					$response['msg'][]  = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
+					$response['msg'][] = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
 					break;
 				}
 
@@ -148,12 +156,8 @@ class TInvWL_Public_Wishlist_Ajax {
 				) ) ? $product_data['data']->get_name() : $product_data['data']->get_title() );
 
 				if ( $wlp->remove( $product_data ) ) {
-					$response['status']  = true;
-					$response['msg'][]   = sprintf( __( '%s has been removed from wishlist.', 'ti-woocommerce-wishlist' ), $title );
-					$response['content'] = tinvwl_shortcode_view( array(
-						'paged'    => $post['tinvwl-paged'],
-						'sharekey' => $post['tinvwl-sharekey']
-					) );
+					$response['status'] = true;
+					$response['msg'][]  = sprintf( __( '%s has been removed from wishlist.', 'ti-woocommerce-wishlist' ), $title );
 				} else {
 					$response['status'] = false;
 					$response['msg'][]  = sprintf( __( '%s has not been removed from wishlist.', 'ti-woocommerce-wishlist' ), $title );
@@ -168,15 +172,13 @@ class TInvWL_Public_Wishlist_Ajax {
 					$wlp = new TInvWL_Product( $wishlist );
 				}
 				if ( empty( $wlp ) ) {
-					$response['status'] = false;
-					$response['msg'][]  = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
+					$response['msg'][] = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
 					break;
 				}
 				$product_data = $wlp->get_wishlist( array( 'ID' => $product_id ) );
 				$product_data = array_shift( $product_data );
 				if ( empty( $product_data ) ) {
-					$response['status'] = false;
-					$response['msg'][]  = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
+					$response['msg'][] = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
 					break;
 				}
 
@@ -205,7 +207,7 @@ class TInvWL_Public_Wishlist_Ajax {
 
 				} elseif ( apply_filters( 'tinvwl_allow_addtocart_in_wishlist', true, $wishlist, $owner ) ) {
 					$add = TInvWL_Public_Cart::add( $wishlist, $product_id, $quantity );
-					if ( $add ) {
+					if ( $add && ! isset( $add['error_code'] ) ) {
 						$response['status'] = true;
 						$response['msg'][]  = sprintf( _n( '%s has been added to your cart.', '%s have been added to your cart.', 1, 'ti-woocommerce-wishlist' ), $title );
 
@@ -218,19 +220,16 @@ class TInvWL_Public_Wishlist_Ajax {
 						}
 					} else {
 						$response['status'] = false;
-						$response['msg'][]  = sprintf( __( 'Product %s could not be added to the cart because some requirements are not met.', 'ti-woocommerce-wishlist' ), $title );
+						$response['msg'][]  = TInvWL_Public_Cart::cart_all_errors_message( array( $add ) );
 					}
-					$response['content'] = tinvwl_shortcode_view( array(
-						'paged'    => $post['tinvwl-paged'],
-						'sharekey' => $post['tinvwl-sharekey']
-					) );
 				}
 
 				break;
 
 			case 'remove_selected':
 				if ( ! $owner ) {
-					return false;
+					$response['msg'][] = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
+					break;
 				}
 				$wlp = null;
 				if ( 0 === $wishlist['ID'] ) {
@@ -239,7 +238,8 @@ class TInvWL_Public_Wishlist_Ajax {
 					$wlp = new TInvWL_Product( $wishlist );
 				}
 				if ( empty( $wlp ) ) {
-					return false;
+					$response['msg'][] = __( 'Something went wrong', 'ti-woocommerce-wishlist' );
+					break;
 				}
 
 				$products = $wlp->get_wishlist( array(
@@ -257,12 +257,8 @@ class TInvWL_Public_Wishlist_Ajax {
 					}
 				}
 				if ( ! empty( $titles ) ) {
-					$response['status']  = true;
-					$response['msg'][]   = sprintf( _n( '%s has been successfully removed from wishlist.', '%s have been successfully removed from wishlist.', count( $titles ), 'ti-woocommerce-wishlist' ), wc_format_list_of_items( $titles ) );
-					$response['content'] = tinvwl_shortcode_view( array(
-						'paged'    => $post['tinvwl-paged'],
-						'sharekey' => $post['tinvwl-sharekey']
-					) );
+					$response['status'] = true;
+					$response['msg'][]  = sprintf( _n( '%s has been successfully removed from wishlist.', '%s have been successfully removed from wishlist.', count( $titles ), 'ti-woocommerce-wishlist' ), wc_format_list_of_items( $titles ) );
 				}
 
 				break;
@@ -302,7 +298,13 @@ class TInvWL_Public_Wishlist_Ajax {
 					$quantity             = apply_filters( 'tinvwl_product_add_to_cart_quantity', array_key_exists( $_product['ID'], (array) $_quantity ) ? $_quantity[ $_product['ID'] ] : 1, $product_data );
 					$_product['quantity'] = $quantity;
 					if ( apply_filters( 'tinvwl_product_add_to_cart_need_redirect', false, $product_data, $redirect_url, $_product ) ) {
-						$errors[] = $_product['product_id'];
+						$cart_errors = TInvWL_Public_Cart::add_to_cart_errors( $product_data, $quantity );
+						$error_code  = $cart_errors['error_code'] ?? 'default';
+						$errors[]    = array(
+							'product'    => $product_data,
+							'quantity'   => $quantity,
+							'error_code' => $error_code
+						);
 						continue;
 					}
 
@@ -310,30 +312,25 @@ class TInvWL_Public_Wishlist_Ajax {
 
 					$add = TInvWL_Public_Cart::add( $wishlist, $_product, $quantity );
 
-					if ( $add ) {
-						$result = tinv_array_merge( $result, $add );
+					if ( $add && ! isset( $add['error_code'] ) ) {
+						$result[] = $add;
 					} else {
-						$errors[] = $product_data->get_id();
+						$errors[] = $add;
 					}
 				}
 
 				if ( ! empty( $errors ) ) {
-					$titles = array();
-					foreach ( $errors as $product_id ) {
-						$titles[] = sprintf( _x( '&ldquo;%s&rdquo;', 'Item name in quotes', 'ti-woocommerce-wishlist' ), strip_tags( get_the_title( $product_id ) ) );
-					}
-					$titles            = array_filter( $titles );
-					$response['msg'][] = sprintf( _n( 'Product %s could not be added to the cart because some requirements are not met.', 'Products: %s could not be added to the cart because some requirements are not met.', count( $titles ), 'ti-woocommerce-wishlist' ), wc_format_list_of_items( $titles ) );
+					$response['msg'][] = TInvWL_Public_Cart::cart_all_errors_message( $errors );
 				}
 				if ( ! empty( $result ) ) {
 					$response['status'] = true;
 
 					$titles = array();
 					$count  = 0;
-					foreach ( $result as $product_id => $qty ) {
+					foreach ( $result as $key => $data ) {
 						/* translators: %s: product name */
-						$titles[] = apply_filters( 'woocommerce_add_to_cart_qty_html', ( $qty > 1 ? absint( $qty ) . ' &times; ' : '' ), $product_id ) . apply_filters( 'woocommerce_add_to_cart_item_name_in_quotes', sprintf( _x( '&ldquo;%s&rdquo;', 'Item name in quotes', 'ti-woocommerce-wishlist' ), strip_tags( get_the_title( $product_id ) ) ), $product_id );
-						$count    += $qty;
+						$titles[] = apply_filters( 'woocommerce_add_to_cart_qty_html', ( $data['quantity'] > 1 ? absint( $data['quantity'] ) . ' &times; ' : '' ), $data['product']->get_id() ) . apply_filters( 'woocommerce_add_to_cart_item_name_in_quotes', sprintf( _x( '&ldquo;%s&rdquo;', 'Item name in quotes', 'ti-woocommerce-wishlist' ), $data['product']->get_name() ), $data['product']->get_id() );
+						$count    += $data['quantity'];
 					}
 
 					$titles = array_filter( $titles );
@@ -348,10 +345,7 @@ class TInvWL_Public_Wishlist_Ajax {
 						$response['redirect'] = wc_get_cart_url();
 					}
 				}
-				$response['content'] = tinvwl_shortcode_view( array(
-					'paged'    => $post['tinvwl-paged'],
-					'sharekey' => $post['tinvwl-sharekey']
-				) );
+
 				break;
 			case 'add_to_cart_all':
 				$_quantity = array();
@@ -384,7 +378,13 @@ class TInvWL_Public_Wishlist_Ajax {
 					$quantity             = apply_filters( 'tinvwl_product_add_to_cart_quantity', array_key_exists( $_product['ID'], (array) $_quantity ) ? $_quantity[ $_product['ID'] ] : 1, $product_data );
 					$_product['quantity'] = $quantity;
 					if ( apply_filters( 'tinvwl_product_add_to_cart_need_redirect', false, $product_data, $redirect_url, $_product ) ) {
-						$errors[] = $_product['product_id'];
+						$cart_errors = TInvWL_Public_Cart::add_to_cart_errors( $product_data, $quantity );
+						$error_code  = $cart_errors['error_code'] ?? 'default';
+						$errors[]    = array(
+							'product'    => $product_data,
+							'quantity'   => $quantity,
+							'error_code' => $error_code
+						);
 						continue;
 					}
 
@@ -392,30 +392,25 @@ class TInvWL_Public_Wishlist_Ajax {
 
 					$add = TInvWL_Public_Cart::add( $wishlist, $_product, $quantity );
 
-					if ( $add ) {
-						$result = tinv_array_merge( $result, $add );
+					if ( $add && ! isset( $add['error_code'] ) ) {
+						$result[] = $add;
 					} else {
-						$errors[] = $product_data->get_id();
+						$errors[] = $add;
 					}
 				}
 
 				if ( ! empty( $errors ) ) {
-					$titles = array();
-					foreach ( $errors as $product_id ) {
-						$titles[] = sprintf( _x( '&ldquo;%s&rdquo;', 'Item name in quotes', 'ti-woocommerce-wishlist' ), strip_tags( get_the_title( $product_id ) ) );
-					}
-					$titles            = array_filter( $titles );
-					$response['msg'][] = sprintf( _n( 'Product %s could not be added to the cart because some requirements are not met.', 'Products: %s could not be added to the cart because some requirements are not met.', count( $titles ), 'ti-woocommerce-wishlist' ), wc_format_list_of_items( $titles ) );
+					$response['msg'][] = TInvWL_Public_Cart::cart_all_errors_message( $errors );
 				}
 				if ( ! empty( $result ) ) {
 					$response['status'] = true;
 
 					$titles = array();
 					$count  = 0;
-					foreach ( $result as $product_id => $qty ) {
+					foreach ( $result as $key => $data ) {
 						/* translators: %s: product name */
-						$titles[] = apply_filters( 'woocommerce_add_to_cart_qty_html', ( $qty > 1 ? absint( $qty ) . ' &times; ' : '' ), $product_id ) . apply_filters( 'woocommerce_add_to_cart_item_name_in_quotes', sprintf( _x( '&ldquo;%s&rdquo;', 'Item name in quotes', 'ti-woocommerce-wishlist' ), strip_tags( get_the_title( $product_id ) ) ), $product_id );
-						$count    += $qty;
+						$titles[] = apply_filters( 'woocommerce_add_to_cart_qty_html', ( $data['quantity'] > 1 ? absint( $data['quantity'] ) . ' &times; ' : '' ), $data['product']->get_id() ) . apply_filters( 'woocommerce_add_to_cart_item_name_in_quotes', sprintf( _x( '&ldquo;%s&rdquo;', 'Item name in quotes', 'ti-woocommerce-wishlist' ), $data['product']->get_name() ), $data['product']->get_id() );
+						$count    += $data['quantity'];
 					}
 
 					$titles = array_filter( $titles );
@@ -430,19 +425,20 @@ class TInvWL_Public_Wishlist_Ajax {
 						$response['redirect'] = wc_get_cart_url();
 					}
 				}
-				$response['content'] = tinvwl_shortcode_view( array(
-					'paged'    => $post['tinvwl-paged'],
-					'sharekey' => $post['tinvwl-sharekey']
-				) );
 				break;
 			case 'get_data':
 				$response['status'] = true;
 				break;
 		}
-		$response['action'] = $action;
-		$response['icon']   = $response['status'] ? 'icon_big_heart_check' : 'icon_big_times';
-		$response['msg']    = array_unique( $response['msg'] );
-		$response['msg']    = implode( '<br>', $response['msg'] );
+		$response['content'] = tinvwl_shortcode_view( array(
+			'paged'          => $post['tinvwl-paged'],
+			'sharekey'       => $post['tinvwl-sharekey'],
+			'lists_per_page' => $post['tinvwl-per-page'],
+		) );
+		$response['action']  = $action;
+		$response['icon']    = $response['status'] ? 'icon_big_heart_check' : 'icon_big_times';
+		$response['msg']     = array_unique( $response['msg'] );
+		$response['msg']     = implode( '<br>', $response['msg'] );
 		if ( tinv_get_option( 'table', 'hide_popup' ) && array_key_exists( 'msg', $response ) ) {
 			unset( $response['msg'] );
 		}
@@ -458,7 +454,7 @@ class TInvWL_Public_Wishlist_Ajax {
 		$response['wishlists_data'] = $class->get_wishlists_data( $share_key );
 
 		do_action( 'tinvwl_action_' . $action, $wishlist, $post['tinvwl-products'], $post['wishlist_qty'], $owner ); // @codingStandardsIgnoreLine WordPress.NamingConventions.ValidHookName.UseUnderscores
-
+		do_action( 'tinvwl_ajax_actions_after', $wishlist, $post, $guest_wishlist );
 		wp_send_json( $response );
 	}
 }

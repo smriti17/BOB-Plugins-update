@@ -46,6 +46,10 @@ class TInvWL_Admin_Notices {
 	function __construct( $plugin_name = TINVWL_PREFIX ) {
 		global $wpdb;
 
+		if ( ! current_user_can( 'install_plugins' ) ) {
+			return false;
+		}
+
 		$this->_name = $plugin_name;
 		$this->table = sprintf( '%s%s_%s', $wpdb->prefix, $this->_name, 'lists' );
 
@@ -110,11 +114,18 @@ class TInvWL_Admin_Notices {
 			return;
 		}
 
+		$user_review  = ! get_user_meta( get_current_user_id(), 'tinvwl-user-review', true );
+		$user_premium = ! get_user_meta( get_current_user_id(), 'tinvwl-user-premium', true );
+
+		if ( ! ( $user_premium || $user_review ) ) {
+			return;
+		}
+
 		?>
 		<script>
 			(function ($) {
 
-				$(document).on('click', '.notice-dismiss, .tinvwl-notice-dismiss', function () {
+				$(document).on('click', '.tinvwl-admin-notice .notice-dismiss, .tinvwl-notice-dismiss', function () {
 					var $box = $(this).closest('.tinvwl-admin-notice'),
 						isLink = $(this).attr('data-link') === 'follow' ? true : false,
 						notice_type = $box.data('notice_type');
@@ -144,9 +155,6 @@ class TInvWL_Admin_Notices {
 			})(jQuery);
 		</script>
 		<?php
-
-		$user_review  = ! get_user_meta( get_current_user_id(), 'tinvwl-user-review', true );
-		$user_premium = ! get_user_meta( get_current_user_id(), 'tinvwl-user-premium', true );
 
 		if ( $user_review ) {
 			?>
