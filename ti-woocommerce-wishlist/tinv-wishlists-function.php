@@ -158,11 +158,6 @@ class TInvWLRename {
 	private function translation_update( $text, $domain ) {
 		if ( 'ti-woocommerce-wishlist' === $domain ) {
 
-			if ( strpos( $text, '{wishlist_title}' ) !== false ) {
-				// If $text contains "{wishlist_title}", skip the replacement
-				return $text;
-			}
-
 			$translations = [
 				'wishlist' => [
 					$this->rename_single,
@@ -529,7 +524,7 @@ if ( ! function_exists( 'tinv_wishlist_status' ) ) {
 
 			return 'plugins.php';
 		}
-		if ( defined( 'TINVWL_LOAD_PREMIUM' ) && TINVWL_LOAD_PREMIUM === $transient ) {
+		if ( TINVWL_LOAD_PREMIUM === $transient ) {
 			if ( is_plugin_active( TINVWL_LOAD_FREE ) ) {
 				TInvWL_PluginExtend::deactivate_self( TINVWL_LOAD_FREE );
 				if ( ! function_exists( 'wp_create_nonce' ) ) {
@@ -771,7 +766,7 @@ if ( ! function_exists( 'tinvwl_meta_validate_cart_add' ) ) {
 				$redirect = false;
 			}
 
-			TInvWL_Public_Cart::unprepare_post( $wl_product );
+			TInvWL_Public_Cart::unprepare_post();
 		}
 
 		return $redirect;
@@ -805,17 +800,6 @@ if ( ! function_exists( 'tinv_wishlist_print_meta' ) ) {
 			if ( array_key_exists( $field, $meta ) ) {
 				unset( $meta[ $field ] );
 			}
-		}
-		if ( array_key_exists( 'tinvwl-hidden-fields', $meta ) ) {
-			$hiddenFields = json_decode( $meta['tinvwl-hidden-fields'], true );
-			if ( $hiddenFields !== null ) {
-				foreach ( $hiddenFields as $hiddenKey ) {
-					if ( isset( $meta[ $hiddenKey ] ) ) {
-						unset( $meta[ $hiddenKey ] );
-					}
-				}
-			}
-			unset( $meta['tinvwl-hidden-fields'] );
 		}
 		$meta = array_filter( $meta );
 		if ( empty( $meta ) ) {
@@ -872,8 +856,8 @@ if ( ! function_exists( 'tinv_wishlistmeta' ) ) {
 	function tinv_wishlistmeta( $meta, $wl_product, $product ) {
 		if ( array_key_exists( 'meta', $wl_product ) ) {
 			$wlmeta = apply_filters( 'tinvwl_wishlist_item_meta_wishlist_output', tinv_wishlist_print_meta( $wl_product['meta'] ), $wl_product, $product );
-			$meta   .= $wlmeta;
 		}
+		$meta .= $wlmeta;
 
 		return $meta;
 	}
@@ -886,7 +870,7 @@ if ( ! function_exists( 'tinvwl_add_to_cart_item_meta_post' ) ) {
 	/**
 	 * Save post data to cart item
 	 *
-	 * @param array $cart_item_data Array with cart item information.
+	 * @param array $cart_item_data Array with cart imet information.
 	 * @param string $cart_item_key Cart item key.
 	 *
 	 * @return array
@@ -894,7 +878,7 @@ if ( ! function_exists( 'tinvwl_add_to_cart_item_meta_post' ) ) {
 	function tinvwl_add_to_cart_item_meta_post( $cart_item_data, $cart_item_key ) {
 		$postdata = $_POST; // @codingStandardsIgnoreLine WordPress.VIP.SuperGlobalInputUsage.AccessDetected
 
-		$postdata = apply_filters( 'tinvwl_product_prepare_meta', $postdata, $cart_item_data['product_id'], $cart_item_data['variation_id'] );
+		$postdata = apply_filters( 'tinvwl_product_prepare_meta', $postdata );
 
 		if ( array_key_exists( 'variation_id', $postdata ) && ! empty( $postdata['variation_id'] ) ) {
 			foreach ( $postdata as $key => $field ) {
@@ -922,28 +906,18 @@ if ( ! function_exists( 'tinvwl_add_to_cart_item_meta_post' ) ) {
 	add_action( 'woocommerce_add_cart_item', 'tinvwl_add_to_cart_item_meta_post', 10, 2 );
 } // End if().
 
-/**
- * Filters the Astra React admin localization data and adds an upgrade URL.
- *
- * @param array $data The localization data.
- *
- * @return array The modified localization data with the upgrade URL.
- */
-function tinvwl_astra_upgrade_url( $data ) {
-	$data['upgrade_url'] = 'https://wpastra.com/pro/?bsf=11452';
-
-	return $data;
-}
-
-add_filter( 'astra_react_admin_localize', 'tinvwl_astra_upgrade_url', 9999, 1 );
-
-
 if ( ! function_exists( 'tinvwl_set_utm' ) ) {
 
 	/**
 	 * Set UTM sources.
 	 */
 	function tinvwl_set_utm() {
+
+		// Forcing partners UTM.
+		if ( class_exists( 'Ocean_Extra' ) && ! defined( 'TINVWL_PARTNER' ) && ! defined( 'TINVWL_CAMPAIGN' ) ) {
+			define( 'TINVWL_PARTNER', 'oceanwporg' );
+			define( 'TINVWL_CAMPAIGN', 'oceanwp_theme' );
+		}
 
 		// Set a source.
 		$source = get_option( TINVWL_PREFIX . '_utm_source' );
@@ -1011,65 +985,6 @@ if ( ! function_exists( 'tinvwl_get_wishlist_products' ) ) {
 	}
 }
 
-if ( ! function_exists( 'wp_recursive_ksort' ) ) {
-	/**
-	 * Sorts the keys of an array alphabetically.
-	 * The array is passed by reference so it doesn't get returned
-	 * which mimics the behaviour of ksort.
-	 *
-	 * @param array $array The array to sort, passed by reference.
-	 *
-	 * @since 2.3.1
-	 *
-	 */
-	function wp_recursive_ksort( &$array ) {
-		foreach ( $array as &$value ) {
-			if ( is_array( $value ) ) {
-				wp_recursive_ksort( $value );
-			}
-		}
-		ksort( $array );
-	}
-}
-
-if ( ! function_exists( 'wc_is_attribute_in_product_name' ) ) {
-	/**
-	 * Check if an attribute is included in the attributes area of a variation name.
-	 *
-	 * @param string $attribute Attribute value to check for.
-	 * @param string $name Product name to check in.
-	 *
-	 * @return bool
-	 * @since  2.3.1
-	 */
-	function wc_is_attribute_in_product_name( $attribute, $name ) {
-		$is_in_name = stristr( $name, ' ' . $attribute . ',' ) || 0 === stripos( strrev( $name ), strrev( ' ' . $attribute ) );
-
-		return apply_filters( 'woocommerce_is_attribute_in_product_name', $is_in_name, $attribute, $name );
-	}
-}
-
-add_action( 'admin_init', 'tinvwl_handle_external_redirects', 9 );
-
-function tinvwl_handle_external_redirects() {
-	if ( empty( $_GET['page'] ) ) {
-		return;
-	}
-	if ( 'tinvwl-upgrade' === $_GET['page'] ) {
-		wp_redirect( 'https://templateinvaders.com/product/ti-woocommerce-wishlist-wordpress-plugin/?utm_source=' . TINVWL_UTM_SOURCE . '&utm_campaign=' . TINVWL_UTM_CAMPAIGN . '&utm_medium=' . TINVWL_UTM_MEDIUM . '&utm_content=wp_menu&partner=' . TINVWL_UTM_SOURCE );
-		die;
-	}
-
-	if ( 'go_elementor_pro' === $_GET['page'] ) {
-		wp_redirect( 'https://be.elementor.com/visit/?bta=211953&nci=5383' );
-		die;
-	}
-	if ( 'go_knowledge_base_site' === $_GET['page'] ) {
-		wp_redirect( 'https://be.elementor.com/visit/?bta=211953&nci=5517' );
-		die;
-	}
-}
-
 add_action( 'init', function () {
 	if ( ! is_user_logged_in() ) {
 		add_filter( 'nonce_user_logged_out', function ( $uid, $action = - 1 ) {
@@ -1081,44 +996,3 @@ add_action( 'init', function () {
 		}, 99, 2 );
 	}
 } );
-
-/**
- * Get message placeholders for the add-to-wishlist message.
- *
- * @param string $string The message string to replace placeholders.
- * @param WC_Product|null $product (Optional) The product to get the message placeholders for.
- * @param array|null $wishlist (Optional) The wishlist to get the message placeholders for.
- *
- * @return string The message string with replaced placeholders.
- */
-function tinvwl_message_placeholders( string $string, ?WC_Product $product = null, ?array $wishlist = null ): string {
-	$placeholders = [];
-
-	if ( $product instanceof WC_Product ) {
-		$placeholders['{product_name}'] = is_callable( [ $product, 'get_name' ] )
-			? $product->get_name()
-			: $product->get_title();
-		$placeholders['{product_sku}']  = $product->get_sku();
-	}
-
-	if ( is_array( $wishlist ) ) {
-		$wishlist_title                   = empty( $wishlist['title'] )
-			? apply_filters( 'tinvwl_default_wishlist_title', tinv_get_option( 'general', 'default_title' ) )
-			: $wishlist['title'];
-		$placeholders['{wishlist_title}'] = $wishlist_title;
-	}
-
-	/**
-	 * Filters the message placeholders for the add-to-wishlist message.
-	 *
-	 * @param array $placeholders The message placeholders.
-	 * @param WC_Product|null $product The product to get the message placeholders for.
-	 * @param array|null $wishlist The wishlist to get the message placeholders for.
-	 */
-	$placeholders = apply_filters( 'tinvwl_addtowishlist_message_placeholders', $placeholders, $product, $wishlist );
-
-	$find    = array_keys( $placeholders );
-	$replace = array_values( $placeholders );
-
-	return str_replace( $find, $replace, $string );
-}

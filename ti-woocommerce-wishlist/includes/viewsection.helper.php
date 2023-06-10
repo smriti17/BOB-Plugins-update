@@ -396,7 +396,7 @@ class TInvWL_ViewSection extends TInvWL_View {
 	/**
 	 * Run view section
 	 *
-	 * @param bool $echo output or return sections.
+	 * @param bollean $echo output or return sections.
 	 *
 	 * @return string
 	 */

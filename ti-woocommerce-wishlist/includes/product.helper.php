@@ -311,6 +311,14 @@ class TInvWL_Product {
 		$where = '1';
 		if ( ! empty( $data ) && is_array( $data ) ) {
 			if ( array_key_exists( 'meta', $data ) ) {
+				$product_id = $variation_id = 0;
+				if ( array_key_exists( 'product_id', $data ) ) {
+					$product_id = $data['product_id'];
+				}
+				if ( array_key_exists( 'variation_id', $data ) ) {
+					$variation_id = $data['variation_id'];
+				}
+				$data['formdata'] = trim( $this->prepare_save_meta( $data['meta'], $product_id, $variation_id ), "'" );
 				unset( $data['meta'] );
 			}
 			foreach ( $data as $f => $v ) {
@@ -368,7 +376,7 @@ class TInvWL_Product {
 					'date'         => FILTER_DEFAULT,
 					'formdata'     => FILTER_DEFAULT,
 					'quantity'     => FILTER_VALIDATE_INT,
-					'price'        => FILTER_SANITIZE_NUMBER_FLOAT | FILTER_FLAG_ALLOW_FRACTION,
+					'price'        => FILTER_SANITIZE_NUMBER_FLOAT,
 					'in_stock'     => FILTER_VALIDATE_BOOLEAN,
 				) );
 				$product['quantity'] = 1;
@@ -551,16 +559,18 @@ class TInvWL_Product {
 	}
 
 	/**
-	 * Remove product from wishlist.
+	 * Remove product from wishlist
 	 *
-	 * @param int $wishlist_id If exist wishlist object, you can put 0.
-	 * @param int $product_id Product ID.
-	 * @param int $variation_id Product variation ID.
+	 * @param integer $wishlist_id If exist wishlist object, you can put 0.
+	 * @param integer $product_id Product id.
+	 * @param integer $variation_id Product variation id.
 	 * @param array $meta Object meta form data.
 	 *
-	 * @return bool
+	 * @return boolean
+	 * @global wpdb $wpdb
+	 *
 	 */
-	function remove_product_from_wl( int $wishlist_id = 0, int $product_id = 0, int $variation_id = 0, array $meta = [] ): bool {
+	function remove_product_from_wl( $wishlist_id = 0, $product_id = 0, $variation_id = 0, $meta = array() ) {
 		global $wpdb;
 		if ( empty( $wishlist_id ) ) {
 			$wishlist_id = $this->wishlist_id();
@@ -569,42 +579,23 @@ class TInvWL_Product {
 			return false;
 		}
 		if ( empty( $product_id ) ) {
-			return false !== $wpdb->delete( $this->table, [ 'wishlist_id' => $wishlist_id ] ); // WPCS: db call ok; no-cache ok; unprepared SQL ok.
+			return false !== $wpdb->delete( $this->table, array( 'wishlist_id' => $wishlist_id ) ); // WPCS: db call ok; no-cache ok; unprepared SQL ok.
 		}
 
-		$original_meta = $meta;
-
-		if ( ! empty( $meta ) && array_key_exists( 'tinvwl-hidden-fields', $meta ) ) {
-			unset( $meta['tinvwl-hidden-fields'] );
-		}
-
-		$data                  = [
+		$data             = array(
 			'wishlist_id'  => $wishlist_id,
 			'product_id'   => $product_id,
 			'variation_id' => $variation_id,
-		];
+		);
 		$data['formdata'] = $this->prepare_save_meta( $meta, $data['product_id'], $data['variation_id'] );
-		$data['original_meta'] = $this->prepare_save_meta( $original_meta, $data['product_id'], $data['variation_id'] );
 
-		$sql  = "DELETE FROM $this->table WHERE `wishlist_id` = %d AND `product_id` = %d AND `variation_id` = %d";
-		$args = [ $data['wishlist_id'], $data['product_id'], $data['variation_id'] ];
-
-		if ( ! empty( $meta ) ) {
-			$sql    .= " AND (`formdata` = %s OR `formdata` = %s OR `formdata` = %s OR `formdata` = %s)";
-			$args[] = $data['formdata'];
-			$args[] = $data['original_meta'];
-			$args[] = '{"tinvwl-hidden-fields":"[]"}';
-			$args[] = '';
-		}
-
-		$prepared_sql = $wpdb->prepare( $sql, $args );
-		$result       = $wpdb->query( $prepared_sql );
-
+		$result = false !== $wpdb->delete( $this->table, $data ); // WPCS: db call ok; no-cache ok; unprepared SQL ok.
 		if ( $result ) {
 			do_action( 'tinvwl_wishlist_product_removed_from_wishlist', $wishlist_id, $product_id, $variation_id );
+			set_transient( '_tinvwl_update_wishlists_data', '1' );
 		}
 
-		return (bool) $result;
+		return $result;
 	}
 
 	/**
@@ -625,6 +616,7 @@ class TInvWL_Product {
 		$result = false !== $wpdb->delete( $this->table, array( 'product_id' => $product_id ) ); // WPCS: db call ok; no-cache ok; unprepared SQL ok.
 		if ( $result ) {
 			do_action( 'tinvwl_wishlist_product_removed_by_product', $product_id );
+			set_transient( '_tinvwl_update_wishlists_data', '1' );
 		}
 
 		return $result;
@@ -681,6 +673,7 @@ class TInvWL_Product {
 			 * @param array $data product data including author and wishlist IDs.
 			 * */
 			do_action( 'tinvwl_product_removed', $data );
+			set_transient( '_tinvwl_update_wishlists_data', '1' );
 		}
 
 		return $result;
@@ -718,8 +711,8 @@ class TInvWL_Product {
 	 * Prepare to save meta in database
 	 *
 	 * @param array $meta Meta array.
-	 * @param int $product_id Woocommerce product ID.
-	 * @param int $variation_id Woocommerce product variation ID.
+	 * @param ineger $product_id Woocommerce product ID.
+	 * @param ineger $variation_id Woocommerce product variation ID.
 	 *
 	 * @return string
 	 */

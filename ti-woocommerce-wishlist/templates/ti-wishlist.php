@@ -4,7 +4,7 @@
  *
  * This template can be overridden by copying it to yourtheme/woocommerce/ti-wishlist.php.
  *
- * @version             2.3.3
+ * @version             2.0.5
  * @package           TInvWishlist\Template
  */
 
@@ -20,14 +20,13 @@ wp_enqueue_script( 'tinvwl' );
 	} ?>
 	<?php $form_url = tinv_url_wishlist( $wishlist['share_key'], $wl_paged, true ); ?>
 	<form action="<?php echo esc_url( $form_url ); ?>" method="post" autocomplete="off"
-		  data-tinvwl_paged="<?php echo $wl_paged; ?>" data-tinvwl_per_page="<?php echo $wl_per_page; ?>"
-		  data-tinvwl_sharekey="<?php echo $wishlist['share_key'] ?>">
+		  data-tinvwl_paged="<?php echo $wl_paged; ?>" data-tinvwl_sharekey="<?php echo $wishlist['share_key'] ?>">
 		<?php do_action( 'tinvwl_before_wishlist_table', $wishlist ); ?>
 		<table class="tinvwl-table-manage-list">
 			<thead>
 			<tr>
 				<?php if ( isset( $wishlist_table['colm_checkbox'] ) && $wishlist_table['colm_checkbox'] ) { ?>
-					<th class="product-cb"><input type="checkbox" class="global-cb input-checkbox"
+					<th class="product-cb"><input type="checkbox" class="global-cb"
 												  title="<?php _e( 'Select all for bulk action', 'ti-woocommerce-wishlist' ) ?>">
 					</th>
 				<?php } ?>
@@ -83,7 +82,7 @@ wp_enqueue_script( 'tinvwl' );
 							<td class="product-cb">
 								<?php
 								echo apply_filters( 'tinvwl_wishlist_item_cb', sprintf( // WPCS: xss ok.
-									'<input type="checkbox" name="wishlist_pr[]" class="input-checkbox" value="%d" title="%s">', esc_attr( $wl_product['ID'] ), __( 'Select for bulk action', 'ti-woocommerce-wishlist' )
+									'<input type="checkbox" name="wishlist_pr[]" value="%d" title="%s">', esc_attr( $wl_product['ID'] ), __( 'Select for bulk action', 'ti-woocommerce-wishlist' )
 								), $wl_product, $product );
 								?>
 							</td>

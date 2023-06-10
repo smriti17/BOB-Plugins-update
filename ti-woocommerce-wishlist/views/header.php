@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
 }
 
 ?>
-<div class="<?php echo esc_attr(sprintf('%s-header', TINVWL_PREFIX)); ?> tinv-wishlist-clearfix">
+<div class="<?php echo esc_attr(sprintf('%s-header', self::$_name)); ?> tinv-wishlist-clearfix">
 	<div class="row">
 		<div class="col-lg-7">
 			<div class="tinwl-logo-title">
@@ -27,7 +27,7 @@ if (!defined('ABSPATH')) {
 						</div>
 					</div>
 					<div class="tinvwl-cell">
-						<h1 class="tinvwl-title"><?php echo $_name; ?></h1>
+						<h1 class="tinvwl-title"><?php echo esc_html($_name); ?></h1>
 					</div>
 				</div>
 			</div>

@@ -186,7 +186,7 @@ class TInvWL_Activator
 	 * @param string $method1 Method name first from this class.
 	 * @param string $method2 Method name second from this class.
 	 *
-	 * @return bool
+	 * @return type
 	 */
 	public static function sort_database($method1, $method2)
 	{
@@ -578,7 +578,7 @@ class TInvWL_Activator
 	{
 		global $wpdb;
 
-		$indexes = isset( $table['index'] ) ? $table['index'] : array();
+		$indexes = $table['index'];
 
 		foreach ($indexes as $index => $columns) {
 
@@ -707,7 +707,7 @@ class TInvWL_Activator
 	/**
 	 * Destroy tables from array
 	 *
-	 * @param array $tables Array tables.
+	 * @param type $tables Array tables.
 	 *
 	 * @return boolean
 	 * @global wpdb $wpdb

@@ -349,4 +349,9 @@ function TInvWL($, h) {
       }
     });
   });
+  $(document).on('click', '.tinvwl-chat-notice .notice-dismiss', function (e) {
+    $.post(tinvwl_comfirm.ajax_url, {
+      action: 'tinvwl_admin_chat_notice'
+    });
+  });
 })(jQuery);

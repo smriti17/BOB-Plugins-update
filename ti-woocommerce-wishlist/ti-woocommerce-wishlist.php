@@ -4,11 +4,11 @@
  * Plugin Name:       TI WooCommerce Wishlist
  * Plugin URI:        https://wordpress.org/plugins/ti-woocommerce-wishlist/
  * Description:       Wishlist functionality for your WooCommerce store.
- * Version:           2.6.0
+ * Version:           2.1.0
  * Requires at least: 4.7
- * Tested up to: 6.2
+ * Tested up to: 6.1
  * WC requires at least: 3.0
- * WC tested up to: 7.7
+ * WC tested up to: 7.2
  * Author:            TemplateInvaders
  * Author URI:        https://templateinvaders.com/
  * License:           GPL-2.0+
@@ -41,7 +41,7 @@ if ( ! defined( 'TINVWL_DOMAIN' ) ) {
 }
 
 if ( ! defined( 'TINVWL_FVERSION' ) ) {
-	define( 'TINVWL_FVERSION', '2.6.0' );
+	define( 'TINVWL_FVERSION', '2.1.0' );
 }
 
 if ( ! defined( 'TINVWL_LOAD_FREE' ) ) {
@@ -106,7 +106,7 @@ if ( ! function_exists( 'tinv_get_option_defaults' ) ) {
 		$defaults = array();
 		foreach ( $files as $file ) {
 			$class         = 'TInvWL_Admin_Settings_' . ucfirst( $file );
-			$class         = $class::instance( TINVWL_PREFIX, TINVWL_FVERSION );
+			$class         = $class::instance();
 			$class_methods = get_class_methods( $class );
 
 			foreach ( $class_methods as $method ) {
@@ -260,12 +260,6 @@ if ( ! function_exists( 'run_tinv_wishlist' ) ) {
 		}
 	}
 }
-
-add_action( 'before_woocommerce_init', function () {
-	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
-		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
-	}
-} );
 
 register_activation_hook( __FILE__, 'activation_tinv_wishlist' );
 register_deactivation_hook( __FILE__, 'deactivation_tinv_wishlist' );

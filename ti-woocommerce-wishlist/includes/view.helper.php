@@ -241,7 +241,7 @@ class TInvWL_View {
 	 *
 	 * @return boolean
 	 */
-	public static function file( $name, $type = 'admin' ) {
+	private static function file( $name, $type = 'admin' ) {
 		if ( empty( $name ) ) {
 			return self::file( 'null', '' );
 		}
@@ -304,7 +304,7 @@ class TInvWL_View {
 	 *
 	 * @param string $_template_name Name file.
 	 * @param array $_data Parameter for template.
-	 * @param string $_type Folder section.
+	 * @param type $_type Folder section.
 	 */
 	public static function view( $_template_name, $_data = array(), $_type = 'admin' ) {
 		if ( is_array( $_template_name ) ) {
@@ -338,7 +338,7 @@ class TInvWL_View {
 	/**
 	 * Generated header
 	 *
-	 * @param string $_name Title for page.
+	 * @param name $_name Title for page.
 	 */
 	public static function header( $_name = '' ) {
 		$status_panel = self::status_panel();
