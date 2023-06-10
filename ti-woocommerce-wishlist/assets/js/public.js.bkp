@@ -453,9 +453,7 @@ function _typeof(obj) { "@babel/helpers - typeof"; return _typeof = "function" =
           }
         }
         if (response.status) {
-          //$('div.tinv-wishlist.woocommerce.tinv-wishlist-clear').replaceWith(response.content);
-          jQuery('button[value="'+el.val()+'"]').parent().parent().remove();
-
+          $('div.tinv-wishlist.woocommerce.tinv-wishlist-clear').replaceWith(response.content);
           $('.tinvwl-break-input').tinvwl_break_submit({
             selector: '.tinvwl-break-input-filed'
           });

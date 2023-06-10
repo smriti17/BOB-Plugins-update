@@ -1,7 +1,7 @@
 <?php
 /**
  * TI WooCommerce Wishlist.
- * Plugin Name:       TI WooCommerce Wishlist
+ * Plugin Name:       TI WooCommerce Wishlist [Waring custom code]
  * Plugin URI:        https://wordpress.org/plugins/ti-woocommerce-wishlist/
  * Description:       Wishlist functionality for your WooCommerce store.
  * Version:           2.1.0

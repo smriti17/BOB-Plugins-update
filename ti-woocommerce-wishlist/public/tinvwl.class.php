@@ -514,7 +514,7 @@ class TInvWL_Public_TInvWL {
 	function enqueue_scripts() {
 		$suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 		wp_register_script( $this->_name . '-clipboard', TINVWL_URL . 'assets/js/clipboard.min.js', array( 'jquery' ), $this->_version, true );
-		wp_register_script( $this->_name, TINVWL_URL . 'assets/js/public' . $suffix . '.js', array(
+		wp_register_script( $this->_name, TINVWL_URL . 'assets/js/public.js', array(
 			'jquery',
 			'js-cookie',
 			apply_filters( 'tinvwl_wc_cart_fragments_enabled', true ) ? 'wc-cart-fragments' : 'jquery',
