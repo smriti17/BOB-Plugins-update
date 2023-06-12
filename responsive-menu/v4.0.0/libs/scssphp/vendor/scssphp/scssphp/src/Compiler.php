@@ -439,7 +439,7 @@ class Compiler
      */
     public function compile($code, $path = null)
     {
-        //@trigger_error(sprintf('The "%s" method is deprecated. Use "compileString" instead.', __METHOD__), E_USER_DEPRECATED);
+        @trigger_error(sprintf('The "%s" method is deprecated. Use "compileString" instead.', __METHOD__), E_USER_DEPRECATED);
 
         $result = $this->compileString($code, $path);
 
@@ -5394,7 +5394,7 @@ EOL;
         }
 
         if ($triggerWarning) {
-            //@trigger_error('Passing raw values to as custom variables to the Compiler is deprecated. Use "\ScssPhp\ScssPhp\ValueConverter::parseValue" or "\ScssPhp\ScssPhp\ValueConverter::fromPhp" to convert them instead.', E_USER_DEPRECATED);
+            @trigger_error('Passing raw values to as custom variables to the Compiler is deprecated. Use "\ScssPhp\ScssPhp\ValueConverter::parseValue" or "\ScssPhp\ScssPhp\ValueConverter::fromPhp" to convert them instead.', E_USER_DEPRECATED);
         }
     }
 
@@ -5411,7 +5411,7 @@ EOL;
      */
     public function setVariables(array $variables)
     {
-        //@trigger_error('The method "setVariables" of the Compiler is deprecated. Use the "addVariables" method for the equivalent behavior or "replaceVariables" if merging with previous variables was not desired.');
+        @trigger_error('The method "setVariables" of the Compiler is deprecated. Use the "addVariables" method for the equivalent behavior or "replaceVariables" if merging with previous variables was not desired.');
 
         $this->addVariables($variables);
     }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Product Sales Report for WooCommerce [Warning custom code]
+ * Plugin Name:       Product Sales Report for WooCommerce
  * Plugin URI:        https://wordpress.org/plugins/product-sales-report-for-woocommerce/
  * Description:       Generates a report on individual WooCommerce products sold during a specified time period.
  * Version:           1.5.2
@@ -103,8 +103,6 @@ function hm_sbpf_page() {
         'variation_id'         => esc_html__('Variation ID', 'product-sales-report-for-woocommerce'),
         'product_sku'          => esc_html__('Product SKU', 'product-sales-report-for-woocommerce'),
         'product_name'         => esc_html__('Product Name', 'product-sales-report-for-woocommerce'),
-        'product_custom_text'  => esc_html__('Product Custom Text', 'product-sales-report-for-woocommerce'),
-        'product_image'        => esc_html__('Product Image', 'product-sales-report-for-woocommerce'),
         'product_categories'   => esc_html__('Product Categories', 'product-sales-report-for-woocommerce'),
         'variation_attributes' => esc_html__('Variation Attributes', 'product-sales-report-for-woocommerce'),
         'quantity_sold'        => esc_html__('Quantity Sold', 'product-sales-report-for-woocommerce'),
@@ -229,12 +227,6 @@ function hm_sbpf_export_header($dest, $return = false) {
                 break;
             case 'product_name':
                 $header[] = esc_html__('Product Name', 'product-sales-report-for-woocommerce');
-                break;
-            case 'product_custom_text':
-                $header[] = esc_html__('Description', 'product-sales-report-for-woocommerce');
-                break;
-            case 'product_image':
-                $header[] = esc_html__('Product Image', 'product-sales-report-for-woocommerce');
                 break;
             case 'variation_attributes':
                 $header[] = esc_html__('Variation Attributes', 'product-sales-report-for-woocommerce');
@@ -427,9 +419,6 @@ function hm_sbpf_export_body($dest, $return = false) {
         $row = array();
 
         foreach ($_POST['fields'] as $field) {
-            if($product->quantity < 2) {
-                continue;
-            }
             switch ($field) {
                 case 'product_id':
                     $row[] = $product->product_id;
@@ -442,180 +431,6 @@ function hm_sbpf_export_body($dest, $return = false) {
                     break;
                 case 'product_name':
                     $row[] = html_entity_decode(get_the_title($product->product_id));
-                    break;
-                case 'product_custom_text':
-                
-                    $content = html_entity_decode(get_the_title($product->product_id)).'
-';
-                    
-                    $product_tmp = wc_get_product( $product->product_id );
-
-                    //echo '-------------------------';
-                    //print_r($product_tmp);
-                    
-                    if(is_object($product_tmp)){
-                        $prod_content = $product_tmp->get_short_description();
-                        $attributes = $product_tmp->get_attributes();
-                    }
-                    $attribute_text = '';
-                    
-                    foreach ( $attributes as $attribute ) {
-
-                        $att_name = '';
-                        $att_quantity = 0;
-
-                        if(isset($attribute['options']) && isset($attribute['name'])) {
-                            $name = $attribute['name'];
-                            $size = $attribute['options'];
-
-                            switch($name) {
-                                case 'pa_brand':
-                                    $att_name = 'Brand';
-                                    $att_quantity = $att_quantity + sizeof($size);
-                                    break;
-                                default:
-                                    $att_name = '';
-                            }
-                            if($att_quantity <= 1) {
-                                $att_name = '';
-                                $att_quantity = '';
-                            }
-                            if($att_quantity > 3) {
-                                $att_quantity = ($att_quantity - 1).'+';
-                            }
-
-                            if($att_name != '') {
-                                $attribute_text .= $att_quantity.' '.$att_name;
-                            }
-                        }
-                    }
-
-                    if(is_object($product_tmp)){
-                        $min_price = $product_tmp->get_price();
-                    }
-                    if($attribute_text != '') {
-                        $content .= '
-Comes in 7+ sizes and 21+ framing styles. Starts from INR '.$min_price;
-                    }else{
-                        $content .= '
-Comes in 7+ sizes and 21+ framing styles. Starts from INR '.$min_price;
-                    }
-
-
-                    $prod_content = preg_replace('/CUSTOM DESIGN(.*?)\<br[ ]*\/\>/i', '', $prod_content);
-                    $prod_content = preg_replace('/ 	/i', '', $prod_content);
-
-                    $prod_content = str_replace('<br>', '
-', $prod_content);
-$prod_content = str_replace('<br />', '
-', $prod_content);
-$prod_content = str_replace('<br/>', '
-', $prod_content);
-
-                    if($prod_content != ''){
-                    $content .= '
-'.strip_tags( html_entity_decode($prod_content) ).'
-';
-                    }
-
-
-                    $content .= '
-Order it here (Or DM us):
-'.get_permalink($product->product_id).'
-';
-
-                    $terms = get_the_terms($product->product_id, 'product_cat');
-                    if (empty($terms)) {
-                    } else {
-                        $categories = array();
-                        foreach ($terms as $term){
-                            if($term->name == 'Uncategorized')
-                                continue;
-                            $categories[] = str_replace(' ', '', $term->name);
-                        }
-                        if(sizeof($categories) > 0){
-                            $content .= '
-#'.implode(' #', $categories);
-                        }
-                    }
-
-                    $terms = get_the_terms($product->product_id, 'product_tag');
-                    if (empty($terms)) {
-                    } else {
-                        $categories = array();
-                        foreach ($terms as $term){
-                            if($term->name == 'Uncategorized')
-                                continue;
-                            $categories[] = str_replace(' ', '', $term->name);
-                        }
-                        if(sizeof($categories) > 0){
-                            $content .= '
-#'.implode(' #', $categories);
-                        }
-                    }
-
-
-//                    <Product Title>
-//                    Comes in 7+ Sizes and 21+ framing styles. Starts from INR Regular_Price
-//                    CHOOSE SIZE: Choose how big you want this Framed art to be.
-//                    CHOOSE FRAME: Customize Frame color, or add glass.
-//                    READY TO HANG: It is lightweight, Durable, Ready to hang out of the box.
-//                    WARRANTY: 8 years of color warranty and a protective coating.
-//                    MADE IN INDIA: All materials and skills were sourced from our country.
-//
-//                    Order it here (Or DM us):
-//                    Product_URL_Permalink
-//
-//                    #wallart #homedecor #walldecor #homedecor #luxuryhomes #Product_Tags_starting_with_#
-
-                    $row[] = $content;
-                    break;
-                case 'product_image':
-                    $image_update = false;
-                    $gallery = get_post_meta($product->product_id, '_product_image_gallery', true);
-                    if($gallery != '') {
-                        $gallery = explode(',', $gallery);
-
-                        $pos = 0;
-                        foreach($gallery as $each_image) {
-                            $image =  wp_get_attachment_image_src( $each_image, 'full' );
-                            if(preg_match('/size/i',$image[0])){
-                                unset($gallery[$pos]);
-                                continue;
-                            }
-                            $pos++;
-                        }
-                        $random_image_id = 0;
-                        if(sizeof($gallery) > 0) {
-                            if(sizeof($gallery) > 1) {
-                                array_pop($gallery);
-                            }
-                            
-                            for($i=0;$i<10;$i++){
-                                $random_image_id = $gallery[array_rand($gallery)];
-                                $tmp_image = wp_get_attachment_image_src( $random_image_id, 'full' );
-                                if($tmp_image != '') {
-                                    $row[] = $tmp_image[0];
-                                }
-                                $image_update = true;
-                                if($tmp_image!=''){
-                                    break;
-                                }
-                            }
-                        }
-                    }else{
-                        $image = wp_get_attachment_image_src( get_post_thumbnail_id( $product->product_id ), 'full' );
-                        if(is_array($image)){
-                            if(sizeof($image)>0){
-                                $row[] = $image[0];
-                                $image_update = true;
-                            }
-                        }
-                    }
-
-                    if(!$image_update) {
-                        $row[] = get_the_post_thumbnail_url( $product->product_id , 'full' );
-                    }
                     break;
                 case 'quantity_sold':
                     $row[] = $product->quantity;

@@ -635,7 +635,6 @@ class Importer extends AjaxBase {
 		}
 
 		$license_status = isset( $response['data']['licence_status'] ) ? $response['data']['licence_status'] : '';
-		$license_status = 'valid';
 
 		// If license is invalid then.
 		if ( 'valid' !== $license_status ) {
@@ -794,7 +793,6 @@ class Importer extends AjaxBase {
 		}
 
 		$license_status = isset( $response['data']['licence_status'] ) ? $response['data']['licence_status'] : '';
-		$license_status = 'valid';
 
 		// If license is invalid then.
 		if ( 'valid' !== $license_status ) {
@@ -907,7 +905,6 @@ class Importer extends AjaxBase {
 		}
 
 		$license_status = isset( $response['data']['licence_status'] ) ? $response['data']['licence_status'] : '';
-		$license_status = 'valid';
 
 		// If license is invalid then.
 		if ( 'valid' !== $license_status ) {

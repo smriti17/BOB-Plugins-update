@@ -1,7 +1,7 @@
 <?php
 
 /*
-Plugin Name: Responsive Menu [Warning custom code]
+Plugin Name: Responsive Menu
 Plugin URI: https://expresstech.io
 Description: Highly Customisable Responsive Menu Plugin for WordPress
 Version: 4.2.1

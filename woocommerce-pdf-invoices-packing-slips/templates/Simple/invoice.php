@@ -106,7 +106,7 @@
 	</thead>
 	<tbody>
 		<?php foreach ( $this->get_order_items() as $item_id => $item ) : ?>
-			<tr class="<?php echo apply_filters( 'wpo_wcpdf_item_row_class', $item_id, $this->get_type(), $this->order, $item_id ); ?>">
+			<tr class="<?php echo apply_filters( 'wpo_wcpdf_item_row_class', 'item-'.$item_id, esc_attr( $this->get_type() ), $this->order, $item_id ); ?>">
 				<td class="product">
 					<?php $description_label = __( 'Description', 'woocommerce-pdf-invoices-packing-slips' ); // registering alternate label translation ?>
 					<span class="item-name"><?php echo $item['name']; ?></span>
@@ -149,7 +149,6 @@
 					<tfoot>
 						<?php foreach ( $this->get_woocommerce_totals() as $key => $total ) : ?>
 							<tr class="<?php echo esc_attr( $key ); ?>">
-								<td class="no-borders"></td>
 								<th class="description"><?php echo $total['label']; ?></th>
 								<td class="price"><span class="totals-price"><?php echo $total['value']; ?></span></td>
 							</tr>

@@ -275,8 +275,7 @@ class Main {
 		}
 
 		// Check the nonce - guest access doesn't use nonces but checks the unique order key (hash)
-		//if( empty( $_GET['action'] ) || ( !$guest_access && !check_admin_referer( $_GET['action'] ) ) ) {
-		if( !is_user_in_role('shop_manager') && !is_user_in_role('administrator') ) {
+		if ( empty( $_REQUEST['action'] ) || ( ! $guest_access && ! $valid_nonce ) ) {
 			wp_die( esc_attr__( 'You do not have sufficient permissions to access this page.', 'woocommerce-pdf-invoices-packing-slips' ) );
 		}
 
